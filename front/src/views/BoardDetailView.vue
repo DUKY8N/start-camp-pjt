@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useRoute, useRouter } from 'vue-router'
 import PasswordConfirmModal from '@/components/PasswordConfirmModal.vue'
-import { deletePost, getPostQueryOptions, postQueryKeys } from '@/api/backend'
+import { deletePost, getPostQueryOptions, postQueryKeys, updatePost } from '@/api/backend'
 
 const route = useRoute()
 const router = useRouter()
@@ -32,6 +32,22 @@ const { data: postResponse, isLoading, isError, error } = useQuery(
 
 const deleteMutation = useMutation({
   mutationFn: (password) => deletePost(postId.value, password),
+  onMutate: async () => {
+    await queryClient.cancelQueries({ queryKey: postQueryKeys.all })
+
+    const previousQueries = queryClient.getQueriesData({ queryKey: postQueryKeys.all })
+
+    previousQueries.forEach(([queryKey, previousData]) => {
+      if (!Array.isArray(previousData)) {
+        return
+      }
+
+      const nextData = previousData.filter((item) => item?.id !== postId.value)
+      queryClient.setQueryData(queryKey, nextData)
+    })
+
+    return { previousQueries }
+  },
   onSuccess: async () => {
     isDeleting.value = false
 
@@ -43,12 +59,49 @@ const deleteMutation = useMutation({
 
     router.replace('/board')
   },
-  onError: (err) => {
+  onError: (err, _password, context) => {
     isDeleting.value = false
+
+    context?.previousQueries?.forEach(([queryKey, previousData]) => {
+      queryClient.setQueryData(queryKey, previousData)
+    })
+
+    router.replace(`/board/${postId.value}`)
     alert(err?.message || '삭제에 실패했습니다.')
   },
   onSettled: () => {
     isDeleting.value = false
+  },
+})
+
+const verifyPasswordMutation = useMutation({
+  mutationFn: (password) => {
+    if (!post.value) {
+      throw new Error('게시글 정보를 불러오지 못했습니다.')
+    }
+
+    return updatePost(postId.value, {
+      category: postResponse.value?.category ?? 'general',
+      title: post.value.title,
+      content: post.value.body,
+      password,
+    })
+  },
+  onSuccess: (_, password) => {
+    isPasswordChecking.value = false
+    closePasswordModal()
+    router.push({
+      path: `/board/${postId.value}/edit`,
+      query: { password },
+    })
+  },
+  onError: (err) => {
+    isPasswordChecking.value = false
+    closePasswordModal()
+    alert(err?.message || '비밀번호가 올바르지 않습니다.')
+  },
+  onSettled: () => {
+    isPasswordChecking.value = false
   },
 })
 
@@ -68,6 +121,7 @@ const post = computed(() => {
 const modalOpen = ref(false)
 const modalMode = ref('')
 const isDeleting = ref(false)
+const isPasswordChecking = ref(false)
 
 const modalTitle = computed(() => (modalMode.value === 'delete' ? '게시글 삭제' : '게시글 수정'))
 const modalDescription = computed(() =>
@@ -96,17 +150,14 @@ function handlePasswordConfirm(password) {
     isDeleting.value = true
     closePasswordModal()
     router.replace('/board')
-
     deleteMutation.mutate(password)
     return
   }
 
   if (modalMode.value === 'edit') {
+    isPasswordChecking.value = true
     closePasswordModal()
-    router.push({
-      path: `/board/${postId.value}/edit`,
-      query: { password },
-    })
+    verifyPasswordMutation.mutate(password)
   }
 }
 </script>
@@ -143,7 +194,9 @@ function handlePasswordConfirm(password) {
         <button type="button" class="delete-button" :disabled="isDeleting" @click="openPasswordModal('delete')">
           {{ isDeleting ? '삭제 중...' : '삭제' }}
         </button>
-        <button type="button" class="edit-button" @click="openPasswordModal('edit')">수정</button>
+        <button type="button" class="edit-button" :disabled="isPasswordChecking" @click="openPasswordModal('edit')">
+          {{ isPasswordChecking ? '확인 중...' : '수정' }}
+        </button>
       </footer>
     </article>
 
