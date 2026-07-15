@@ -21,17 +21,53 @@ const messages = ref([
 
 const messageInput = ref('')
 
-function sendMessage() {
+async function sendMessage() {
   const text = messageInput.value.trim()
+
   if (!text) return
 
+  const id = Date.now()
+
+  // 사용자 메시지 추가
   messages.value.push({
-    id: Date.now(),
+    id,
     role: 'user',
     text,
   })
 
   messageInput.value = ''
+
+  try {
+    const response = await fetch('http://localhost:8000/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        question: text,
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error('API 요청 실패')
+    }
+
+    const data = await response.json()
+
+    messages.value.push({
+      id: id + 1,
+      role: 'assistant',
+      text: data.answer,
+    })
+  } catch (err) {
+    messages.value.push({
+      id: id + 1,
+      role: 'assistant',
+      text: '죄송합니다. 현재 답변을 가져오지 못했습니다.',
+    })
+
+    console.error(err)
+  }
 }
 </script>
 
