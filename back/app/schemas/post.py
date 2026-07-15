@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator, field_serializer
 
 
 class PostCreate(BaseModel):
@@ -90,13 +90,15 @@ class PostDelete(BaseModel):
 
 
 class PostResponse(BaseModel):
-    """
-    게시글 생성/조회/수정 응답 body
-    프론트엔드가 받을 응답 형식입니다.
-    """
+    model_config = ConfigDict(from_attributes=True)
+
     id: int = Field(..., description="게시글 고유 번호")
     category: str = Field(..., description="게시글 카테고리")
     title: str = Field(..., description="게시글 제목")
     content: str = Field(..., description="게시글 본문")
     created_at: datetime = Field(..., description="게시글 작성일시")
     views: int = Field(..., description="게시글 조회수")
+
+    @field_serializer("created_at")
+    def _ser_created_at(self, v: datetime, _info):
+        return v.strftime("%Y-%m-%d %H:%M")
