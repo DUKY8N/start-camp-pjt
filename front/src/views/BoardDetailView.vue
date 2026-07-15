@@ -1,13 +1,59 @@
 <script setup>
 import { computed, ref } from 'vue'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useRoute, useRouter } from 'vue-router'
 import PasswordConfirmModal from '@/components/PasswordConfirmModal.vue'
-import { boardPosts } from '@/data/boardPosts'
+import { deletePost, getPostQueryOptions, postQueryKeys } from '@/api/backend'
 
 const route = useRoute()
 const router = useRouter()
+const queryClient = useQueryClient()
 
-const post = computed(() => boardPosts.find((item) => item.id === Number(route.params.id)))
+const postId = computed(() => Number(route.params.id))
+
+function formatDate(value) {
+  if (!value) return ''
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+
+  return date.toLocaleDateString('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+}
+
+const { data: postResponse, isLoading, isError, error } = useQuery(
+  computed(() => getPostQueryOptions(postId.value)),
+)
+
+const deleteMutation = useMutation({
+  mutationFn: (password) => deletePost(postId.value, password),
+  onSuccess: async () => {
+    await queryClient.invalidateQueries({ queryKey: postQueryKeys.all })
+    router.push('/board')
+  },
+  onError: (err) => {
+    alert(err?.message || '삭제에 실패했습니다.')
+  },
+})
+
+const post = computed(() => {
+  if (!postResponse.value) return null
+
+  return {
+    id: postResponse.value.id,
+    title: postResponse.value.title,
+    author: postResponse.value.category || '익명',
+    createdAt: formatDate(postResponse.value.created_at),
+    body: postResponse.value.content,
+    views: postResponse.value.views ?? 0,
+  }
+})
+
 const modalOpen = ref(false)
 const modalMode = ref('')
 
@@ -34,18 +80,18 @@ function closePasswordModal() {
 }
 
 function handlePasswordConfirm(password) {
-  // TODO: API 연결 후 여기에서 비밀번호 검증 요청
   if (modalMode.value === 'delete') {
-    console.log('삭제 비밀번호 확인:', password)
+    deleteMutation.mutate(password)
     closePasswordModal()
     return
   }
 
   if (modalMode.value === 'edit') {
-    console.log('수정 비밀번호 확인:', password)
-    const postId = route.params.id
     closePasswordModal()
-    router.push(`/board/${postId}/edit`)
+    router.push({
+      path: `/board/${postId.value}/edit`,
+      query: { password },
+    })
   }
 }
 </script>
@@ -54,13 +100,23 @@ function handlePasswordConfirm(password) {
   <section class="detail-page">
     <button type="button" class="back-button" @click="goBack">← 뒤로가기</button>
 
-    <article v-if="post" class="detail-card">
+    <article v-if="isLoading" class="empty-card">
+      <h1>게시글을 불러오는 중입니다.</h1>
+    </article>
+
+    <article v-else-if="isError" class="empty-card">
+      <h1>게시글 정보를 불러오지 못했습니다.</h1>
+      <p>{{ error?.message }}</p>
+    </article>
+
+    <article v-else-if="post" class="detail-card">
       <header class="detail-header">
         <h1>{{ post.title }}</h1>
 
         <div class="post-meta">
-          <span>작성자 {{ post.author }}</span>
+          <span>카테고리 {{ post.author }}</span>
           <time :datetime="post.createdAt">{{ post.createdAt }}</time>
+          <span>조회수 {{ post.views }}</span>
         </div>
       </header>
 
@@ -69,7 +125,9 @@ function handlePasswordConfirm(password) {
       </div>
 
       <footer class="detail-actions">
-        <button type="button" class="delete-button" @click="openPasswordModal('delete')">삭제</button>
+        <button type="button" class="delete-button" :disabled="deleteMutation.isPending" @click="openPasswordModal('delete')">
+          {{ deleteMutation.isPending ? '삭제 중...' : '삭제' }}
+        </button>
         <button type="button" class="edit-button" @click="openPasswordModal('edit')">수정</button>
       </footer>
     </article>

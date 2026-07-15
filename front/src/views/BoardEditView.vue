@@ -1,44 +1,67 @@
 <script setup>
-import { reactive, watch } from 'vue'
+import { computed, reactive, watch } from 'vue'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useRoute, useRouter } from 'vue-router'
-import { boardPosts } from '@/data/boardPosts'
+import { getPostQueryOptions, postQueryKeys, updatePost } from '@/api/backend'
 
 const route = useRoute()
 const router = useRouter()
+const queryClient = useQueryClient()
+
+const postId = computed(() => Number(route.params.id))
+const passwordFromQuery = computed(() => (route.query.password ? String(route.query.password) : ''))
 
 const form = reactive({
   title: '',
-  body: '',
+  content: '',
+  password: '',
 })
 
-const postId = Number(route.params.id)
-const post = boardPosts.find((item) => item.id === postId)
+const { data: postResponse, isLoading, isError, error } = useQuery(
+  computed(() => getPostQueryOptions(postId.value)),
+)
+
+const updateMutation = useMutation({
+  mutationFn: (payload) => updatePost(postId.value, payload),
+  onSuccess: async () => {
+    await queryClient.invalidateQueries({ queryKey: postQueryKeys.all })
+    router.push(`/board/${postId.value}`)
+  },
+  onError: (err) => {
+    alert(err?.message || '수정에 실패했습니다.')
+  },
+})
 
 watch(
-  () => post,
+  () => postResponse.value,
   (currentPost) => {
     if (!currentPost) return
 
-    form.title = currentPost.title
-    form.body = currentPost.body
+    form.title = currentPost.title || ''
+    form.content = currentPost.content || ''
+    if (!form.password && passwordFromQuery.value) {
+      form.password = passwordFromQuery.value
+    }
   },
   { immediate: true },
 )
 
 function cancelEdit() {
-  router.push(`/board/${postId}`)
+  router.push(`/board/${postId.value}`)
 }
 
 function submitEdit() {
-  // TODO: API 연결 후 게시글 수정 요청
-  // 현재는 더미데이터라 실제 저장 없이 상세 페이지로 이동합니다.
-  console.log('게시글 수정:', {
-    id: postId,
-    title: form.title,
-    body: form.body,
-  })
+  if (!form.title.trim() || !form.content.trim() || !form.password.trim()) {
+    alert('제목, 내용, 비밀번호를 모두 입력해주세요.')
+    return
+  }
 
-  router.push(`/board/${postId}`)
+  updateMutation.mutate({
+    category: 'general',
+    title: form.title.trim(),
+    content: form.content.trim(),
+    password: form.password.trim(),
+  })
 }
 </script>
 
@@ -50,20 +73,36 @@ function submitEdit() {
       <p>기존 내용을 확인하고 필요한 부분만 수정해주세요.</p>
     </div>
 
-    <form v-if="post" class="edit-form" @submit.prevent="submitEdit">
+    <article v-if="isLoading" class="empty-card">
+      <h1>게시글을 불러오는 중입니다.</h1>
+    </article>
+
+    <article v-else-if="isError" class="empty-card">
+      <h1>게시글 정보를 불러오지 못했습니다.</h1>
+      <p>{{ error?.message }}</p>
+    </article>
+
+    <form v-else-if="postResponse" class="edit-form" @submit.prevent="submitEdit">
       <label>
         <span>제목</span>
         <input v-model="form.title" type="text" placeholder="제목을 입력하세요" required />
       </label>
 
       <label>
+        <span>비밀번호</span>
+        <input v-model="form.password" type="password" placeholder="수정용 비밀번호" required />
+      </label>
+
+      <label>
         <span>본문</span>
-        <textarea v-model="form.body" placeholder="본문을 입력하세요" required></textarea>
+        <textarea v-model="form.content" placeholder="본문을 입력하세요" required></textarea>
       </label>
 
       <div class="form-actions">
         <button type="button" class="cancel-button" @click="cancelEdit">수정 취소</button>
-        <button type="submit" class="submit-button">수정</button>
+        <button type="submit" class="submit-button" :disabled="updateMutation.isPending">
+          {{ updateMutation.isPending ? '수정 중...' : '수정' }}
+        </button>
       </div>
     </form>
 
@@ -178,6 +217,11 @@ textarea:focus {
   color: #ffffff;
   border: 1px solid #111827;
   background: #111827;
+}
+
+.submit-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
 .empty-card {

@@ -1,8 +1,11 @@
 <script setup>
 import { reactive } from 'vue'
+import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useRouter } from 'vue-router'
+import { createPost, postQueryKeys } from '@/api/backend'
 
 const router = useRouter()
+const queryClient = useQueryClient()
 
 const form = reactive({
   title: '',
@@ -11,14 +14,33 @@ const form = reactive({
   body: '',
 })
 
+const createMutation = useMutation({
+  mutationFn: (payload) => createPost(payload),
+  onSuccess: async () => {
+    await queryClient.invalidateQueries({ queryKey: postQueryKeys.all })
+    router.push('/board')
+  },
+  onError: (err) => {
+    alert(err?.message || '게시글 등록에 실패했습니다.')
+  },
+})
+
 function cancelWrite() {
   router.push('/board')
 }
 
 function submitPost() {
-  // TODO: API 연결 후 게시글 등록 요청
-  console.log('게시글 등록:', { ...form })
-  router.push('/board')
+  if (!form.title.trim() || !form.body.trim() || !form.password.trim()) {
+    alert('제목, 내용, 비밀번호를 모두 입력해주세요.')
+    return
+  }
+
+  createMutation.mutate({
+    category: 'general',
+    title: form.title.trim(),
+    content: form.body.trim(),
+    password: form.password.trim(),
+  })
 }
 </script>
 
@@ -39,7 +61,7 @@ function submitPost() {
       <div class="form-grid">
         <label>
           <span>작성자</span>
-          <input v-model="form.author" type="text" placeholder="작성자명" required />
+          <input v-model="form.author" type="text" placeholder="작성자명" />
         </label>
 
         <label>
@@ -55,7 +77,9 @@ function submitPost() {
 
       <div class="form-actions">
         <button type="button" class="cancel-button" @click="cancelWrite">취소</button>
-        <button type="submit" class="submit-button">등록</button>
+        <button type="submit" class="submit-button" :disabled="createMutation.isPending">
+          {{ createMutation.isPending ? '등록 중...' : '등록' }}
+        </button>
       </div>
     </form>
   </section>
@@ -167,6 +191,11 @@ textarea:focus {
   color: #ffffff;
   border: 1px solid #111827;
   background: #111827;
+}
+
+.submit-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
 @media (max-width: 700px) {
