@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
 
 const messages = ref([
   {
@@ -10,25 +10,38 @@ const messages = ref([
 ])
 
 const messageInput = ref('')
+const isLoading = ref(false)
+const messageListRef = ref(null)
+
+let messageId = 2
+
+async function scrollToBottom() {
+  await nextTick()
+
+  if (!messageListRef.value) return
+
+  messageListRef.value.scrollTop =
+    messageListRef.value.scrollHeight
+}
 
 async function sendMessage() {
   const text = messageInput.value.trim()
 
-  if (!text) return
+  if (!text || isLoading.value) return
 
-  const id = Date.now()
-
-  // 사용자 메시지 추가
   messages.value.push({
-    id,
+    id: messageId++,
     role: 'user',
     text,
   })
 
   messageInput.value = ''
+  isLoading.value = true
+
+  await scrollToBottom()
 
   try {
-    const response = await fetch('http://localhost:8000/api/chat', {
+    const response = await fetch('/api/chat', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -39,24 +52,42 @@ async function sendMessage() {
     })
 
     if (!response.ok) {
-      throw new Error('API 요청 실패')
+      let errorMessage = 'API 요청에 실패했습니다.'
+
+      try {
+        const errorData = await response.json()
+
+        if (errorData.detail) {
+          errorMessage = errorData.detail
+        }
+      } catch {
+        // 서버 응답이 JSON 형식이 아니면 기본 메시지를 사용
+      }
+
+      throw new Error(errorMessage)
     }
 
     const data = await response.json()
 
     messages.value.push({
-      id: id + 1,
+      id: messageId++,
       role: 'assistant',
-      text: data.answer,
+      text: data.answer || '답변 내용이 없습니다.',
     })
-  } catch (err) {
-    messages.value.push({
-      id: id + 1,
-      role: 'assistant',
-      text: '죄송합니다. 현재 답변을 가져오지 못했습니다.',
-    })
+  } catch (error) {
+    console.error('챗봇 API 오류:', error)
 
-    console.error(err)
+    messages.value.push({
+      id: messageId++,
+      role: 'assistant',
+      text:
+        error instanceof Error
+          ? `죄송합니다. ${error.message}`
+          : '죄송합니다. 현재 답변을 가져오지 못했습니다.',
+    })
+  } finally {
+    isLoading.value = false
+    await scrollToBottom()
   }
 }
 </script>
@@ -65,12 +96,15 @@ async function sendMessage() {
   <section class="chat-page">
     <header class="chat-header">
       <p class="eyebrow">Seoul Travel Assistant</p>
-      <h1>쳇봇</h1>
+      <h1>챗봇</h1>
       <p>서울 여행에 대해 궁금한 내용을 편하게 물어보세요.</p>
     </header>
 
     <div class="chat-panel">
-      <div class="message-list">
+      <div
+        ref="messageListRef"
+        class="message-list"
+      >
         <article
           v-for="message in messages"
           :key="message.id"
@@ -85,16 +119,45 @@ async function sendMessage() {
             {{ message.text }}
           </div>
         </article>
+
+        <article
+          v-if="isLoading"
+          class="message-row assistant"
+        >
+          <div class="avatar">
+            AI
+          </div>
+
+          <div class="message-bubble loading-bubble">
+            <span class="loading-dot"></span>
+            <span class="loading-dot"></span>
+            <span class="loading-dot"></span>
+          </div>
+        </article>
       </div>
 
-      <form class="chat-input-wrap" @submit.prevent="sendMessage">
-        <input v-model="messageInput" type="text" placeholder="메시지를 입력하세요" />
-        <button type="submit">전송</button>
+      <form
+        class="chat-input-wrap"
+        @submit.prevent="sendMessage"
+      >
+        <input
+          v-model="messageInput"
+          type="text"
+          placeholder="메시지를 입력하세요"
+          autocomplete="off"
+          :disabled="isLoading"
+        />
+
+        <button
+          type="submit"
+          :disabled="isLoading || !messageInput.trim()"
+        >
+          {{ isLoading ? '답변 중' : '전송' }}
+        </button>
       </form>
     </div>
   </section>
 </template>
-
 <style scoped>
 .chat-page {
   display: grid;
@@ -141,6 +204,7 @@ h1 {
   gap: 18px;
   padding: 28px;
   overflow-y: auto;
+  scroll-behavior: smooth;
 }
 
 .message-row {
@@ -178,12 +242,51 @@ h1 {
   color: #111827;
   background: #f9fafb;
   line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   word-break: keep-all;
 }
 
 .message-row.user .message-bubble {
-  color: white;
+  color: #ffffff;
   background: #111827;
+}
+
+.loading-bubble {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 24px;
+}
+
+.loading-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #6b7280;
+  animation: loading 1.2s infinite ease-in-out;
+}
+
+.loading-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.loading-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes loading {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+
+  30% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
 }
 
 .chat-input-wrap {
@@ -201,6 +304,7 @@ h1 {
   border: 1px solid #e5e7eb;
   border-radius: 999px;
   outline: none;
+  font-size: 15px;
 }
 
 .chat-input-wrap input:focus {
@@ -208,20 +312,39 @@ h1 {
   box-shadow: 0 0 0 3px rgba(4, 120, 87, 0.12);
 }
 
+.chat-input-wrap input:disabled {
+  color: #9ca3af;
+  background: #f9fafb;
+  cursor: not-allowed;
+}
+
 .chat-input-wrap button {
   min-width: 78px;
   padding: 0 18px;
   border: 0;
   border-radius: 999px;
-  color: white;
+  color: #ffffff;
   background: #111827;
   font-weight: 800;
   cursor: pointer;
 }
 
+.chat-input-wrap button:hover:not(:disabled) {
+  background: #374151;
+}
+
+.chat-input-wrap button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 @media (max-width: 640px) {
   .chat-header {
     padding: 24px;
+  }
+
+  h1 {
+    font-size: 30px;
   }
 
   .chat-panel {
@@ -234,6 +357,10 @@ h1 {
 
   .message-bubble {
     max-width: 82%;
+  }
+
+  .chat-input-wrap {
+    padding: 14px;
   }
 }
 </style>
