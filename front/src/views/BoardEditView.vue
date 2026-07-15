@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useRoute, useRouter } from 'vue-router'
 import { getPostQueryOptions, postQueryKeys, updatePost } from '@/api/backend'
@@ -16,6 +16,7 @@ const form = reactive({
   content: '',
   password: '',
 })
+const isSubmitting = ref(false)
 
 const { data: postResponse, isLoading, isError, error } = useQuery(
   computed(() => getPostQueryOptions(postId.value)),
@@ -28,7 +29,11 @@ const updateMutation = useMutation({
     router.push(`/board/${postId.value}`)
   },
   onError: (err) => {
+    isSubmitting.value = false
     alert(err?.message || '수정에 실패했습니다.')
+  },
+  onSettled: () => {
+    isSubmitting.value = false
   },
 })
 
@@ -56,6 +61,7 @@ function submitEdit() {
     return
   }
 
+  isSubmitting.value = true
   updateMutation.mutate({
     category: 'general',
     title: form.title.trim(),
@@ -100,8 +106,8 @@ function submitEdit() {
 
       <div class="form-actions">
         <button type="button" class="cancel-button" @click="cancelEdit">수정 취소</button>
-        <button type="submit" class="submit-button" :disabled="updateMutation.isPending">
-          {{ updateMutation.isPending ? '수정 중...' : '수정' }}
+        <button type="submit" class="submit-button" :disabled="isSubmitting">
+          {{ isSubmitting ? '수정 중...' : '수정' }}
         </button>
       </div>
     </form>

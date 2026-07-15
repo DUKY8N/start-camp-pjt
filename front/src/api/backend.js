@@ -1,6 +1,6 @@
 // 백엔드 API 서버의 기본 주소
 // Vite 환경변수가 있으면 그 값을 사용하고, 없으면 로컬 FastAPI 서버로 연결
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '')
 
 // 요청 URL을 만들기 위한 헬퍼 함수
 // path: API 경로, params: 쿼리 파라미터
@@ -24,28 +24,44 @@ async function request(path, { method = 'GET', params, body, headers = {}, ...op
   const isJsonBody = body !== undefined && !(body instanceof FormData)
   const url = buildUrl(path, params)
 
-  const response = await fetch(url, {
-    method,
-    headers: {
-      ...(isJsonBody ? { 'Content-Type': 'application/json' } : {}),
-      ...headers,
-    },
-    body: body == null ? undefined : isJsonBody ? JSON.stringify(body) : body,
-    ...options,
-  })
+  try {
+    console.info('[API] 요청 시작', { method, url, body })
 
-  const contentType = response.headers.get('content-type') || ''
-  const isJsonResponse = contentType.includes('application/json')
-  const payload = isJsonResponse ? await response.json() : await response.text()
+    const response = await fetch(url, {
+      method,
+      headers: {
+        ...(isJsonBody ? { 'Content-Type': 'application/json' } : {}),
+        ...headers,
+      },
+      body: body == null ? undefined : isJsonBody ? JSON.stringify(body) : body,
+      ...options,
+    })
 
-  if (!response.ok) {
-    const error = new Error(payload?.message || `요청 실패: ${response.status}`)
-    error.status = response.status
-    error.payload = payload
+    console.info('[API] 응답 수신', { method, url, status: response.status })
+
+    const contentType = response.headers.get('content-type') || ''
+    const isJsonResponse = contentType.includes('application/json')
+    const payload = isJsonResponse ? await response.json() : await response.text()
+
+    if (!response.ok) {
+      const error = new Error(payload?.message || `요청 실패: ${response.status}`)
+      error.status = response.status
+      error.payload = payload
+      throw error
+    }
+
+    return payload
+  } catch (error) {
+    console.error('[API] 요청 실패', { method, url, error })
+
+    if (error instanceof Error && error.name === 'TypeError') {
+      const networkError = new Error(`네트워크 요청 실패: ${url}`)
+      networkError.cause = error
+      throw networkError
+    }
+
     throw error
   }
-
-  return payload
 }
 
 // TanStack Query에서 사용할 게시글 캐시 키

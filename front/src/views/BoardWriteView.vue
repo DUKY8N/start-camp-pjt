@@ -1,5 +1,5 @@
 <script setup>
-import { reactive } from 'vue'
+import { reactive, ref } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useRouter } from 'vue-router'
 import { createPost, postQueryKeys } from '@/api/backend'
@@ -13,6 +13,7 @@ const form = reactive({
   password: '',
   body: '',
 })
+const isSubmitting = ref(false)
 
 const createMutation = useMutation({
   mutationFn: (payload) => createPost(payload),
@@ -21,7 +22,11 @@ const createMutation = useMutation({
     router.push('/board')
   },
   onError: (err) => {
+    isSubmitting.value = false
     alert(err?.message || '게시글 등록에 실패했습니다.')
+  },
+  onSettled: () => {
+    isSubmitting.value = false
   },
 })
 
@@ -35,6 +40,7 @@ function submitPost() {
     return
   }
 
+  isSubmitting.value = true
   createMutation.mutate({
     category: 'general',
     title: form.title.trim(),
@@ -77,8 +83,8 @@ function submitPost() {
 
       <div class="form-actions">
         <button type="button" class="cancel-button" @click="cancelWrite">취소</button>
-        <button type="submit" class="submit-button" :disabled="createMutation.isPending">
-          {{ createMutation.isPending ? '등록 중...' : '등록' }}
+        <button type="submit" class="submit-button" :disabled="isSubmitting">
+          {{ isSubmitting ? '등록 중...' : '등록' }}
         </button>
       </div>
     </form>

@@ -33,11 +33,22 @@ const { data: postResponse, isLoading, isError, error } = useQuery(
 const deleteMutation = useMutation({
   mutationFn: (password) => deletePost(postId.value, password),
   onSuccess: async () => {
-    await queryClient.invalidateQueries({ queryKey: postQueryKeys.all })
-    router.push('/board')
+    isDeleting.value = false
+
+    try {
+      await queryClient.invalidateQueries({ queryKey: postQueryKeys.all })
+    } catch (invalidateError) {
+      console.warn('[BoardDetail] 게시글 목록 캐시 갱신 실패', invalidateError)
+    }
+
+    router.replace('/board')
   },
   onError: (err) => {
+    isDeleting.value = false
     alert(err?.message || '삭제에 실패했습니다.')
+  },
+  onSettled: () => {
+    isDeleting.value = false
   },
 })
 
@@ -56,6 +67,7 @@ const post = computed(() => {
 
 const modalOpen = ref(false)
 const modalMode = ref('')
+const isDeleting = ref(false)
 
 const modalTitle = computed(() => (modalMode.value === 'delete' ? '게시글 삭제' : '게시글 수정'))
 const modalDescription = computed(() =>
@@ -81,8 +93,11 @@ function closePasswordModal() {
 
 function handlePasswordConfirm(password) {
   if (modalMode.value === 'delete') {
-    deleteMutation.mutate(password)
+    isDeleting.value = true
     closePasswordModal()
+    router.replace('/board')
+
+    deleteMutation.mutate(password)
     return
   }
 
@@ -125,8 +140,8 @@ function handlePasswordConfirm(password) {
       </div>
 
       <footer class="detail-actions">
-        <button type="button" class="delete-button" :disabled="deleteMutation.isPending" @click="openPasswordModal('delete')">
-          {{ deleteMutation.isPending ? '삭제 중...' : '삭제' }}
+        <button type="button" class="delete-button" :disabled="isDeleting" @click="openPasswordModal('delete')">
+          {{ isDeleting ? '삭제 중...' : '삭제' }}
         </button>
         <button type="button" class="edit-button" @click="openPasswordModal('edit')">수정</button>
       </footer>
