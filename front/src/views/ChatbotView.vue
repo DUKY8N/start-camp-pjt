@@ -7,16 +7,6 @@ const messages = ref([
     role: 'assistant',
     text: '안녕하세요. 서울 관광지, 여행 코스, 날씨에 맞는 장소를 물어보세요.',
   },
-  {
-    id: 2,
-    role: 'user',
-    text: '비 오는 날 서울에서 갈 만한 곳 추천해줘',
-  },
-  {
-    id: 3,
-    role: 'assistant',
-    text: '비 오는 날에는 국립중앙박물관, DDP 전시, 코엑스 별마당도서관 같은 실내 관광지를 추천해요.',
-  },
 ])
 
 const messageInput = ref('')
