@@ -18,12 +18,12 @@ watch(currentTour, (tour) => {
 
 function showPreviousTour() {
   if (tours.value.length <= 1) return
-  currentIndex.value = currentIndex.value === 0 ? tours.value.length - 1 : currentIndex.value - 1
+  currentIndex.value = currentIndex.value === 0 ? 0 : currentIndex.value - 1
 }
 
 function showNextTour() {
   if (tours.value.length <= 1) return
-  currentIndex.value = currentIndex.value === tours.value.length - 1 ? 0 : currentIndex.value + 1
+  currentIndex.value = currentIndex.value >= tours.value.length - 1 ? tours.value.length - 1 : currentIndex.value + 1
 }
 
 async function loadTours() {
@@ -53,9 +53,6 @@ onMounted(loadTours)
         <h2>오늘의 관광지 카드</h2>
       </div>
 
-      <span v-if="tours.length > 0" class="card-count">
-        {{ currentIndex + 1 }} / {{ tours.length }}
-      </span>
     </div>
 
     <div class="carousel-container">
@@ -67,7 +64,7 @@ onMounted(loadTours)
         <button
           type="button"
           class="carousel-button previous-button"
-          :disabled="tours.length <= 1"
+          :disabled="tours.length <= 1 || currentIndex <= 0"
           aria-label="이전 관광지"
           @click="showPreviousTour"
         >
@@ -83,7 +80,7 @@ onMounted(loadTours)
         <button
           type="button"
           class="carousel-button next-button"
-          :disabled="tours.length <= 1"
+          :disabled="tours.length <= 1 || currentIndex >= tours.length - 1"
           aria-label="다음 관광지"
           @click="showNextTour"
         >

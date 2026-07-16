@@ -104,13 +104,23 @@ export async function getTourDetail(contentId) {
   }
 }
 
-export async function getTourCards(numOfRows = 12) {
+export async function getTourCards(numOfRows = 20) {
   const tourList = await getSeoulTourList(numOfRows)
-  const detailResults = await Promise.allSettled(
-    tourList.map((tour) => getTourDetail(tour.contentid)),
-  )
 
-  return detailResults
-    .map((result) => (result.status === 'fulfilled' ? result.value : null))
-    .filter(Boolean)
+  return tourList.map((tour) => ({
+    contentId: tour.contentid,
+    contentTypeId: tour.contenttypeid,
+    name: removeHtmlTags(tour.title || '이름 정보 없음'),
+    imageUrl: tour.firstimage || tour.firstimage2 || '',
+    thumbnailUrl: tour.firstimage2 || tour.firstimage || '',
+    address: [tour.addr1, tour.addr2].filter(Boolean).join(' '),
+    address1: tour.addr1 || '',
+    address2: tour.addr2 || '',
+    tel: '',
+    telName: '',
+    mapX: tour.mapx || '',
+    mapY: tour.mapy || '',
+    overview: '',
+    homepage: '',
+  }))
 }
