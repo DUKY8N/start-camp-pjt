@@ -5,11 +5,11 @@ import { RouterLink, RouterView } from 'vue-router'
 <template>
   <header class="app-header">
     <div class="container header-inner">
-      <RouterLink class="logo" to="/">홈</RouterLink>
+      <RouterLink class="logo" to="/">Home</RouterLink>
 
       <nav class="nav-links">
         <RouterLink to="/board">게시판</RouterLink>
-        <RouterLink to="/chatbot">쳇봇</RouterLink>
+        <RouterLink to="/chatbot">챗봇</RouterLink>
       </nav>
     </div>
   </header>
