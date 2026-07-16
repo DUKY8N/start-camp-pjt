@@ -1,3 +1,5 @@
+import { extractHomepageUrl, normalizeHomepageUrl, removeHtmlTags } from './tourApiUtils'
+
 const isProduction = import.meta.env.PROD
 const TOUR_API_BASE_URL = isProduction
   ? '/.netlify/functions/tour-proxy'
@@ -28,22 +30,6 @@ function normalizeItems(data) {
 
   if (!item) return []
   return Array.isArray(item) ? item : [item]
-}
-
-function removeHtmlTags(value = '') {
-  return String(value)
-    .replace(/<br\s*\/?>/gi, ' ')
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
-function extractHomepageUrl(homepage = '') {
-  const hrefMatch = String(homepage).match(/href=["']([^"']+)["']/i)
-
-  if (hrefMatch) return hrefMatch[1]
-  return removeHtmlTags(homepage)
 }
 
 async function requestTourApi(path, params = {}) {
@@ -100,27 +86,52 @@ export async function getTourDetail(contentId) {
     mapX: detail.mapx || '',
     mapY: detail.mapy || '',
     overview: removeHtmlTags(detail.overview),
-    homepage: extractHomepageUrl(detail.homepage),
+    homepage: normalizeHomepageUrl(detail.homepage),
   }
 }
 
 export async function getTourCards(numOfRows = 20) {
   const tourList = await getSeoulTourList(numOfRows)
 
-  return tourList.map((tour) => ({
-    contentId: tour.contentid,
-    contentTypeId: tour.contenttypeid,
-    name: removeHtmlTags(tour.title || '이름 정보 없음'),
-    imageUrl: tour.firstimage || tour.firstimage2 || '',
-    thumbnailUrl: tour.firstimage2 || tour.firstimage || '',
-    address: [tour.addr1, tour.addr2].filter(Boolean).join(' '),
-    address1: tour.addr1 || '',
-    address2: tour.addr2 || '',
-    tel: '',
-    telName: '',
-    mapX: tour.mapx || '',
-    mapY: tour.mapy || '',
-    overview: '',
-    homepage: '',
-  }))
+  const tours = await Promise.all(
+    tourList.map(async (tour) => {
+      try {
+        const detail = await getTourDetail(tour.contentid)
+        return {
+          ...detail,
+          name: removeHtmlTags(detail.name || tour.title || '이름 정보 없음'),
+          imageUrl: detail.imageUrl || tour.firstimage || tour.firstimage2 || '',
+          thumbnailUrl: detail.thumbnailUrl || tour.firstimage2 || tour.firstimage || '',
+          address: detail.address || [tour.addr1, tour.addr2].filter(Boolean).join(' '),
+          address1: detail.address1 || tour.addr1 || '',
+          address2: detail.address2 || tour.addr2 || '',
+          tel: detail.tel || '',
+          telName: detail.telName || '',
+          mapX: detail.mapX || tour.mapx || '',
+          mapY: detail.mapY || tour.mapy || '',
+          overview: detail.overview || '',
+          homepage: detail.homepage || '',
+        }
+      } catch {
+        return {
+          contentId: tour.contentid,
+          contentTypeId: tour.contenttypeid,
+          name: removeHtmlTags(tour.title || '이름 정보 없음'),
+          imageUrl: tour.firstimage || tour.firstimage2 || '',
+          thumbnailUrl: tour.firstimage2 || tour.firstimage || '',
+          address: [tour.addr1, tour.addr2].filter(Boolean).join(' '),
+          address1: tour.addr1 || '',
+          address2: tour.addr2 || '',
+          tel: '',
+          telName: '',
+          mapX: tour.mapx || '',
+          mapY: tour.mapy || '',
+          overview: '',
+          homepage: '',
+        }
+      }
+    }),
+  )
+
+  return tours
 }
