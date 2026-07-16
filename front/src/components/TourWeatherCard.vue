@@ -81,7 +81,7 @@ async function fetchTourWeather(tour, selectedDate) {
     const params = new URLSearchParams({
       latitude: tour.mapY,
       longitude: tour.mapX,
-      daily: 'weather_code,temperature_2m_max,temperature_2m_min',
+      daily: 'weather_code,temperature_2m_max,temperature_2m_min,relative_humidity_2m_mean,wind_speed_10m_mean',
       timezone: 'Asia/Seoul',
       forecast_days: '7',
     })
@@ -104,8 +104,8 @@ async function fetchTourWeather(tour, selectedDate) {
 
     weather.value = {
       temperature: averageTemp,
-      humidity: null,
-      windSpeed: null,
+      humidity: Math.round(dailyWeather.relative_humidity_2m_mean[dayIndex]),
+      windSpeed: Math.round(dailyWeather.wind_speed_10m_mean[dayIndex]),
       weatherText: getWeatherText(dailyWeather.weather_code[dayIndex]),
       icon: getWeatherIcon(dailyWeather.weather_code[dayIndex]),
     }
@@ -145,8 +145,8 @@ watch(
       </div>
 
       <div class="weather-detail">
-        <span><Droplets :size="16" /> 습도 --%</span>
-        <span><Wind :size="16" /> 풍속 --km/h</span>
+        <span><Droplets :size="16" /> 습도 {{ weather.humidity }}%</span>
+        <span><Wind :size="16" /> 풍속 {{ weather.windSpeed }}km/h</span>
       </div>
     </div>
 
