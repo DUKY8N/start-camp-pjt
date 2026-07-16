@@ -26,7 +26,7 @@ def create_app() -> FastAPI:
             "http://localhost:5173",
             "http://127.0.0.1:5173",
             "http://0.0.0.0:5173",
-            "https://your-site.netlify.app",
+            "https://amazing-cupcake-320e07.netlify.app",
         ],
         allow_origin_regex=r"^http://(localhost|127\.0\.0\.1|0\.0\.0\.0|192\.168\.\d+\.\d+):(?:3000|5173)$",
         allow_credentials=True,
