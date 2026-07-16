@@ -36,7 +36,7 @@ async function loadTours() {
   } catch (error) {
     console.error(error)
     tours.value = []
-    errorMessage.value = '서울 관광지 정보를 불러오지 못했습니다.'
+    errorMessage.value = error?.message || '서울 관광지 정보를 불러오지 못했습니다.'
   } finally {
     loading.value = false
   }

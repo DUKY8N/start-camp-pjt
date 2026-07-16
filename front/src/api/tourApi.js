@@ -1,7 +1,10 @@
-const TOUR_API_BASE_URL = '/tour-api/B551011/KorService2'
+const isProduction = import.meta.env.PROD
+const TOUR_API_BASE_URL = isProduction
+  ? '/.netlify/functions/tour-proxy'
+  : '/tour-api/B551011/KorService2'
 
 const commonParams = {
-  serviceKey: import.meta.env.VITE_TOUR_API_KEY,
+  ...(isProduction ? {} : { serviceKey: import.meta.env.VITE_TOUR_API_KEY }),
   MobileOS: 'ETC',
   MobileApp: 'SeoulTravelCommunity',
   _type: 'json',
@@ -44,7 +47,7 @@ function extractHomepageUrl(homepage = '') {
 }
 
 async function requestTourApi(path, params = {}) {
-  if (!commonParams.serviceKey) {
+  if (!isProduction && !commonParams.serviceKey) {
     throw new Error('VITE_TOUR_API_KEY가 설정되어 있지 않습니다.')
   }
 
@@ -56,7 +59,8 @@ async function requestTourApi(path, params = {}) {
   const response = await fetch(`${TOUR_API_BASE_URL}${path}?${searchParams}`)
 
   if (!response.ok) {
-    throw new Error(`관광 API 요청 실패 (${response.status})`)
+    const errorText = await response.text().catch(() => '')
+    throw new Error(`관광 API 요청 실패 (${response.status})${errorText ? `: ${errorText}` : ''}`)
   }
 
   return response.json()
