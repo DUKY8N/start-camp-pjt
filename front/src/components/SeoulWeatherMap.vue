@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import {
   Cloud,
   CloudDrizzle,
@@ -12,11 +12,28 @@ import {
   Sun,
 } from '@lucide/vue'
 
-const today = new Intl.DateTimeFormat('ko-KR', {
-  month: 'long',
-  day: 'numeric',
-  weekday: 'long',
-}).format(new Date())
+const props = defineProps({
+  selectedDate: {
+    type: String,
+    default: '',
+  },
+})
+
+function formatDateInput(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const selectedDateValue = computed(() => props.selectedDate || formatDateInput(new Date()))
+const displayDate = computed(() => {
+  return new Intl.DateTimeFormat('ko-KR', {
+    month: 'long',
+    day: 'numeric',
+    weekday: 'long',
+  }).format(new Date(`${selectedDateValue.value}T00:00:00`))
+})
 
 const areas = [
   { name: '마포', latitude: 37.5663, longitude: 126.9019, top: '42%', left: '28%' },
@@ -62,12 +79,13 @@ function getWeatherIcon(code) {
   return Cloud
 }
 
-async function fetchWeather(area) {
+async function fetchWeather(area, selectedDate) {
   const params = new URLSearchParams({
     latitude: area.latitude,
     longitude: area.longitude,
-    current: 'temperature_2m,weather_code',
+    daily: 'weather_code,temperature_2m_max',
     timezone: 'Asia/Seoul',
+    forecast_days: '7',
   })
 
   const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`)
@@ -77,31 +95,46 @@ async function fetchWeather(area) {
   }
 
   const data = await response.json()
+  const dayIndex = data.daily.time.findIndex((time) => time === selectedDate)
+
+  if (dayIndex === -1) {
+    throw new Error(`${area.name} 날씨를 해당 날짜로 불러오지 못했습니다.`)
+  }
 
   return {
     ...area,
-    temp: Math.round(data.current.temperature_2m),
-    weather: getWeatherText(data.current.weather_code),
-    icon: getWeatherIcon(data.current.weather_code),
+    temp: Math.round(data.daily.temperature_2m_max[dayIndex]),
+    weather: getWeatherText(data.daily.weather_code[dayIndex]),
+    icon: getWeatherIcon(data.daily.weather_code[dayIndex]),
   }
 }
 
-onMounted(async () => {
+async function loadWeather() {
   try {
-    weatherItems.value = await Promise.all(areas.map(fetchWeather))
+    isLoading.value = true
+    errorMessage.value = ''
+    weatherItems.value = await Promise.all(areas.map((area) => fetchWeather(area, selectedDateValue.value)))
   } catch (error) {
     errorMessage.value = error.message || '날씨 정보를 불러오지 못했습니다.'
   } finally {
     isLoading.value = false
   }
-})
+}
+
+watch(
+  () => selectedDateValue.value,
+  () => {
+    loadWeather()
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
   <section class="weather-card">
     <div class="weather-header">
       <div>
-        <p class="date">{{ today }}</p>
+        <p class="date">{{ displayDate }}</p>
         <h2>서울 권역 날씨</h2>
       </div>
       <span class="badge" :class="{ 'is-error': errorMessage }">{{ badgeText }}</span>

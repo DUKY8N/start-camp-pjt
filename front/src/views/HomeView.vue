@@ -1,10 +1,32 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import FeaturedTourSection from '@/components/FeaturedTourSection.vue'
 import SeoulWeatherMap from '@/components/SeoulWeatherMap.vue'
 import TourWeatherCard from '@/components/TourWeatherCard.vue'
 
 const selectedTour = ref(null)
+
+function formatDateInput(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const selectedDate = ref(formatDateInput(new Date()))
+
+const minDate = computed(() => formatDateInput(new Date()))
+const maxDate = computed(() => {
+  const nextWeek = new Date()
+  nextWeek.setDate(nextWeek.getDate() + 7)
+  return formatDateInput(nextWeek)
+})
+
+function changeDate(days) {
+  const nextDate = new Date(`${selectedDate.value}T00:00:00`)
+  nextDate.setDate(nextDate.getDate() + days)
+  selectedDate.value = formatDateInput(nextDate)
+}
 </script>
 
 <template>
@@ -22,8 +44,22 @@ const selectedTour = ref(null)
 
   <section class="content-grid">
     <FeaturedTourSection class="content-main" @update:current-tour="selectedTour = $event" />
-    <SeoulWeatherMap />
-    <TourWeatherCard :tour="selectedTour" />
+    <div class="weather-panel">
+      <div class="date-picker">
+        <button type="button" class="date-button" :disabled="selectedDate === minDate" @click="changeDate(-1)">
+          ←
+        </button>
+        <label class="date-picker-label">
+          <span>날짜</span>
+          <input v-model="selectedDate" type="date" :min="minDate" :max="maxDate" />
+        </label>
+        <button type="button" class="date-button" :disabled="selectedDate === maxDate" @click="changeDate(1)">
+          →
+        </button>
+      </div>
+      <SeoulWeatherMap :selected-date="selectedDate" />
+    </div>
+    <TourWeatherCard :tour="selectedTour" :selected-date="selectedDate" />
   </section>
 </template>
 
@@ -85,6 +121,61 @@ h1 {
 
 .content-main {
   grid-row: 1 / 3;
+}
+
+.weather-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.date-picker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+}
+
+.date-button {
+  border: none;
+  border-radius: 999px;
+  color: #111827;
+  background: #f3f4f6;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px 8px;
+}
+
+.date-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.date-picker-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #4b5563;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.date-picker-label input {
+  border: none;
+  background: transparent;
+  color: #111827;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.date-picker-label input:focus {
+  outline: none;
 }
 
 .content-placeholder {

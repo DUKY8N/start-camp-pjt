@@ -19,7 +19,18 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  selectedDate: {
+    type: String,
+    default: '',
+  },
 })
+
+function formatDateInput(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
 
 const weather = ref(null)
 const isLoading = ref(false)
@@ -55,7 +66,7 @@ function getWeatherIcon(code) {
   return Cloud
 }
 
-async function fetchTourWeather(tour) {
+async function fetchTourWeather(tour, selectedDate) {
   if (!tour?.mapX || !tour?.mapY) {
     weather.value = null
     errorMessage.value = '관광지 위치 정보가 없습니다.'
@@ -66,11 +77,13 @@ async function fetchTourWeather(tour) {
   errorMessage.value = ''
 
   try {
+    const targetDate = selectedDate || formatDateInput(new Date())
     const params = new URLSearchParams({
       latitude: tour.mapY,
       longitude: tour.mapX,
-      current: 'temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m',
+      daily: 'weather_code,temperature_2m_max,temperature_2m_min',
       timezone: 'Asia/Seoul',
+      forecast_days: '7',
     })
 
     const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`)
@@ -80,14 +93,21 @@ async function fetchTourWeather(tour) {
     }
 
     const data = await response.json()
-    const current = data.current
+    const dayIndex = data.daily.time.findIndex((time) => time === targetDate)
+
+    if (dayIndex === -1) {
+      throw new Error('해당 날짜의 날씨를 불러오지 못했습니다.')
+    }
+
+    const dailyWeather = data.daily
+    const averageTemp = Math.round((dailyWeather.temperature_2m_max[dayIndex] + dailyWeather.temperature_2m_min[dayIndex]) / 2)
 
     weather.value = {
-      temperature: Math.round(current.temperature_2m),
-      humidity: current.relative_humidity_2m,
-      windSpeed: Math.round(current.wind_speed_10m),
-      weatherText: getWeatherText(current.weather_code),
-      icon: getWeatherIcon(current.weather_code),
+      temperature: averageTemp,
+      humidity: null,
+      windSpeed: null,
+      weatherText: getWeatherText(dailyWeather.weather_code[dayIndex]),
+      icon: getWeatherIcon(dailyWeather.weather_code[dayIndex]),
     }
   } catch (error) {
     weather.value = null
@@ -98,9 +118,9 @@ async function fetchTourWeather(tour) {
 }
 
 watch(
-  () => props.tour,
-  (tour) => {
-    fetchTourWeather(tour)
+  () => [props.tour, props.selectedDate],
+  ([tour, selectedDate]) => {
+    fetchTourWeather(tour, selectedDate)
   },
   { immediate: true },
 )
@@ -125,8 +145,8 @@ watch(
       </div>
 
       <div class="weather-detail">
-        <span><Droplets :size="16" /> 습도 {{ weather.humidity }}%</span>
-        <span><Wind :size="16" /> 풍속 {{ weather.windSpeed }}km/h</span>
+        <span><Droplets :size="16" /> 습도 --%</span>
+        <span><Wind :size="16" /> 풍속 --km/h</span>
       </div>
     </div>
 
