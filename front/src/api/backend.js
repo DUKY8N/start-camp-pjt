@@ -1,6 +1,9 @@
 // 백엔드 API 서버의 기본 주소
-// Vite 환경변수가 있으면 그 값을 사용하고, 없으면 로컬 FastAPI 서버로 연결
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '')
+// Vite 환경변수가 있으면 그 값을 사용하고, 없으면 운영 환경에서는 현재 도메인, 개발 환경에서는 로컬 FastAPI 서버로 연결
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.PROD ? window.location.origin : 'http://localhost:8000')
+).replace(/\/$/, '')
 
 // 요청 URL을 만들기 위한 헬퍼 함수
 // path: API 경로, params: 쿼리 파라미터

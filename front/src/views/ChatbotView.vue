@@ -1,5 +1,6 @@
 <script setup>
 import { nextTick, ref } from 'vue'
+import { chatWithBot } from '@/api/backend'
 
 const messages = ref([
   {
@@ -41,33 +42,7 @@ async function sendMessage() {
   await scrollToBottom()
 
   try {
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        question: text,
-      }),
-    })
-
-    if (!response.ok) {
-      let errorMessage = 'API 요청에 실패했습니다.'
-
-      try {
-        const errorData = await response.json()
-
-        if (errorData.detail) {
-          errorMessage = errorData.detail
-        }
-      } catch {
-        // 서버 응답이 JSON 형식이 아니면 기본 메시지를 사용
-      }
-
-      throw new Error(errorMessage)
-    }
-
-    const data = await response.json()
+    const data = await chatWithBot(text)
 
     messages.value.push({
       id: messageId++,
