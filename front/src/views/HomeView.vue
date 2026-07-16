@@ -139,9 +139,13 @@ h1 {
   border-radius: 999px;
   background: #ffffff;
   box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto;
 }
 
 .date-button {
+  flex-shrink: 0;
   border: none;
   border-radius: 999px;
   color: #111827;
@@ -150,6 +154,11 @@ h1 {
   font-size: 14px;
   line-height: 1;
   padding: 4px 8px;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .date-button:disabled {
@@ -160,13 +169,23 @@ h1 {
 .date-picker-label {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   color: #4b5563;
   font-size: 13px;
   font-weight: 700;
+  min-width: 0;
+  flex: 1;
+}
+
+.date-picker-label span {
+  flex-shrink: 0;
 }
 
 .date-picker-label input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 110px;
   border: none;
   background: transparent;
   color: #111827;
@@ -185,6 +204,18 @@ h1 {
   background: #f9fafb;
 }
 
+@media (max-width: 900px) {
+  .content-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    gap: 16px;
+  }
+
+  .content-main {
+    grid-row: auto;
+  }
+}
+
 @media (max-width: 640px) {
   .area-banner {
     min-height: 360px;
@@ -197,6 +228,29 @@ h1 {
 
   .description {
     font-size: 16px;
+  }
+
+  .date-picker {
+    flex-wrap: nowrap;
+    border-radius: 18px;
+    padding: 8px 10px;
+    max-width: 100%;
+  }
+
+  .date-picker-label {
+    width: auto;
+    justify-content: center;
+  }
+
+  .date-picker-label input {
+    width: 100px;
+    text-align: center;
+  }
+
+  .banner-button {
+    display: block;
+    width: 100%;
+    text-align: center;
   }
 }
 </style>
