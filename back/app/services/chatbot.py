@@ -9,7 +9,7 @@ import httpx
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_URL = "https://api.openai.com/v1/chat/completions"
-DEFAULT_MODEL = "gpt-3.5-turbo"
+DEFAULT_MODEL = "gpt-5-mini"
 
 async def chat_with_openai(messages: List[Dict[str, str]], model: str = DEFAULT_MODEL) -> str:
     """
