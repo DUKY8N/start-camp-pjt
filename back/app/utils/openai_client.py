@@ -3,6 +3,7 @@ import os
 import json
 from pathlib import Path
 from typing import Any
+from urllib import response
 
 import httpx
 from dotenv import load_dotenv
@@ -12,7 +13,7 @@ load_dotenv(BASE_DIR / ".env")
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_URL = "https://api.openai.com/v1/chat/completions"
-OPENAI_MODEL = "gpt-4o-mini"
+OPENAI_MODEL = "gpt-5-mini"
 
 def _build_public_data_summary(public_data: dict[str, Any], max_items_per_file: int = 2) -> str:
     summary_lines: list[str] = []
@@ -63,8 +64,7 @@ async def chat_with_public_data(question: str, public_data: dict[str, Any]) -> s
     payload = {
         "model": OPENAI_MODEL,
         "messages": messages,
-        "temperature": 0.7,
-        "max_tokens": 500,
+        "max_completion_tokens": 500
     }
 
     headers = {
@@ -74,6 +74,10 @@ async def chat_with_public_data(question: str, public_data: dict[str, Any]) -> s
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(OPENAI_URL, json=payload, headers=headers)
+        print("OpenAI 상태 코드:", response.status_code)
+
+        if not response.is_success:
+            print("OpenAI 오류 응답:", response.text)
         response.raise_for_status()
         result = response.json()
 
