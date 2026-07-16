@@ -36,11 +36,11 @@ const displayDate = computed(() => {
 })
 
 const areas = [
-  { name: '마포', latitude: 37.5663, longitude: 126.9019, top: '42%', left: '28%' },
+  { name: '마포', latitude: 37.5663, longitude: 126.9019, top: '39%', left: '25%' },
   { name: '종로', latitude: 37.5735, longitude: 126.9788, top: '34%', left: '48%' },
   { name: '강남', latitude: 37.5172, longitude: 127.0473, top: '68%', left: '58%' },
   { name: '송파', latitude: 37.5145, longitude: 127.1059, top: '64%', left: '76%' },
-  { name: '영등포', latitude: 37.5264, longitude: 126.8962, top: '58%', left: '28%' },
+  { name: '영등포', latitude: 37.5264, longitude: 126.8962, top: '61%', left: '31%' },
 ]
 
 const weatherItems = ref([])
@@ -255,6 +255,14 @@ h2 {
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.14);
   text-align: center;
   font-size: 12px;
+  z-index: 1;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, z-index 0.2s ease;
+}
+
+.weather-point:hover {
+  z-index: 10;
+  transform: translate(-50%, -50%) scale(1.02);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.2);
 }
 
 .point-icon {
